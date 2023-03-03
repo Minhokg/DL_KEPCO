@@ -1,2 +1,2 @@
-# Deep Learning Analysis on KEPCO Data 
+# Deep Learning Analysis on Google Stock Data 
 
