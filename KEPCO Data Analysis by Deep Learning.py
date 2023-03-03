@@ -79,5 +79,12 @@ def split_series(series, n_past,n_future,target_col=list(range(len(Kepco.columns
     return np.array(X), np.array(y)
             
 # First, Let me use LSTM Model.
+# n_feature is the number of columns 
+# And I'd like to use one month data which is approximately 22 days
+
+n_features = train.shape[1]  # 5 
+n_past = 22
+n_future = 1
+
 
 
