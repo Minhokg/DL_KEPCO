@@ -78,9 +78,10 @@ def split_series(series, n_past,n_future,target_col=list(range(len(goog.columns)
         y.append(future)
     return np.array(X), np.array(y)
             
-# First, Let me use LSTM Model.
+# Data Preparation
+# Before building models, we need to prepare input and target data.
 # n_feature is the number of columns 
-# In this script, I will predict 'Close'(Price) by using 'Open','High','Low','Close', and 'Volume'.
+# In vanila RNN and LSTM, I will predict 'Close'(Price) by using 'Open','High','Low','Close', and 'Volume'.
 
 n_features = train.shape[1]  # 5 
 # And I'd like to set the period of past as one month. 
@@ -89,6 +90,7 @@ n_past = 22
 n_future = 1
 
 # Let me use the user definition function that I made above, split_series.
+# Target columns is only 'Close'
 X_train, y_train = split_series(train.values,n_past,n_future, target_col=goog.columns.get_loc('Close'))
 
 # Warning! we must not use test data as it is, but start as must as n_past period before.
@@ -98,46 +100,45 @@ test_rnn = pd.concat([train[-n_past:],test])
 # And same as train, make test data
 X_test, y_test = split_series(test_rnn.values, n_past,n_future, target_col=goog.columns.get_loc('Close') )
 
-# Before modeling LSTM, We have to do Grid Search.
+# Let's make models! First guy is vanila RNN (simple RNN)
+# Before modeling RNN, We have to do Grid Search.
 # In this essay, I'd like to focus on just number of neurons in the first layer.
 # First, set up a kfold used in Grid Search 
 kfold = KFold(n_splits = 3)
 
-# Second, we need to code the function as below.
-
-def build_lstm(n_neurons):
+# we need to code the function as below.
+def build_rnn(n_neurons):
     model = Sequential()
-    model.add(LSTM(units=n_neurons, activation='tanh', input_shape=(n_past, n_features)))
+    model.add(SimpleRNN(units=n_neurons, activation='tanh', input_shape=(n_past, n_features)))
     model.add(Dense(1, activation='tanh'))
     model.compile(loss='mse',optimizer=tf.keras.optimizers.RMSprop(0.001), metrics=['mse'])
     return model
-
 # Set 10, 20, 30 as candidates. And convert to a dictionary format.
 n_neurons = [10, 20, 30]
 param_grid = dict(n_neurons=n_neurons)
 
 # And use KerasRegressor because we want to predict numeric data, not categorical.
 # Next, do randomized search CV
-model_candi = KerasRegressor(build_fn = build_lstm)
-grid_lstm = RandomizedSearchCV(estimator=model_candi, cv=kfold, param_distributions=param_grid)
+odel_candi = KerasRegressor(build_fn = build_rnn)
+grid_rnn = RandomizedSearchCV(estimator=model_candi, cv=kfold, param_distributions=param_grid)
 
 # Last fit candidates to find out the best model.
 # I set verbose = 0 to hide unnecessary information.
-grid_lstm.fit(X_train, y_train, epochs=50, batch_size=20, verbose=0)
+grid_rnn.fit(X_train, y_train, epochs=50, batch_size=20, verbose=0)
 
-# Below is the best lstm model 
-best_lstm =grid_lstm.best_estimator_
+# Below is the best rnn model 
+best_rnn = grid_rnn.best_estimator_
 
 # Retrain the best model. In this time, I used EarlyStopping to prevent the overfitying problem.
 # And I set a validation portion as 0.2. 
 # Don't be confused between validation and test data 
 es = EarlyStopping(monitor='val_loss', mode='min', patience=5)
-history_lstm = best_lstm.fit(X_train, y_train, epochs=50, batch_size=20, validation_split=0.2, callbacks=[es],
+history_rnn = best_rnn.fit(X_train, y_train, epochs=50, batch_size=20, validation_split=0.2, callbacks=[es],
                             verbose=0)
 
 # To diagnose the performance of the model, I compared Mean Sqaure Error of train and valid.
-train_mse = history_lstm.history['mse']
-valid_mse = history_lstm.history['val_mse']
+train_mse = history_rnn.history['mse']
+valid_mse = history_rnn.history['val_mse']
 
 # Plotting the mse of train and validation data 
 plt.plot(train_mse, label='train mse')
@@ -148,22 +149,68 @@ plt.legend(loc='upper center', bbox_to_anchor=(0.5,-0.15), fancybox=True, shadow
 
 # Last, check the performance of the model numerically by using test data, (not validation).
 # There is a need to put back predicted scaled data.
-pred_lstm = best_lstm.predict(X_test).reshape(-1,1)
+pred_rnn = best_rnn.predict(X_test).reshape(-1,1)
 scaler_close = scalers['scaler_Close']
-pred_lstm = scaler_close.inverse_transform(pred_lstm)
+pred_rnn = scaler_close.inverse_transform(pred_rnn)
 y_test = scaler_close.inverse_transform(y_test)
 
 # Metrics are mean sqaured error and mean absolute percentage error
 from sklearn.metrics import mean_squared_error
 from sklearn.metrics import mean_absolute_percentage_error
+mse_rnn = mean_squared_error(y_test, pred_rnn)
+mape_rnn = mean_absolute_percentage_error(y_test, pred_rnn)
+
+###################################################################################
+# A second model is LSTM.
+# The method is almost same with simple RNN 
+# So I abbreviated lots of comments  
+def build_lstm(n_neurons):
+    model = Sequential()
+    model.add(LSTM(units=n_neurons, activation='tanh', input_shape=(n_past, n_features)))
+    model.add(Dense(1, activation='tanh'))
+    model.compile(loss='mse',optimizer=tf.keras.optimizers.RMSprop(0.001), metrics=['mse'])
+    return model
+
+n_neurons = [10, 20, 30]
+param_grid = dict(n_neurons=n_neurons)
+
+model_candi = KerasRegressor(build_fn = build_lstm)
+grid_lstm = RandomizedSearchCV(estimator=model_candi, cv=kfold, param_distributions=param_grid)
+
+grid_lstm.fit(X_train, y_train, epochs=50, batch_size=20, verbose=0)
+
+best_lstm =grid_lstm.best_estimator_
+
+es = EarlyStopping(monitor='val_loss', mode='min', patience=5)
+history_lstm = best_lstm.fit(X_train, y_train, epochs=50, batch_size=20, validation_split=0.2, callbacks=[es],
+                            verbose=0)
+
+train_mse = history_lstm.history['mse']
+valid_mse = history_lstm.history['val_mse']
+
+plt.plot(train_mse, label='train mse')
+plt.plot(valid_mse, label='validation mse')
+plt.ylabel('mse')
+plt.xlabel('epoch')
+plt.legend(loc='upper center', bbox_to_anchor=(0.5,-0.15), fancybox=True, shadow=False, ncol=2)
+
+pred_lstm = best_lstm.predict(X_test).reshape(-1,1)
+scaler_close = scalers['scaler_Close']
+pred_lstm = scaler_close.inverse_transform(pred_lstm)
+y_test = scaler_close.inverse_transform(y_test)
+
+from sklearn.metrics import mean_squared_error
+from sklearn.metrics import mean_absolute_percentage_error
 mse_lstm = mean_squared_error(y_test, pred_lstm)
 mape_lstm = mean_absolute_percentage_error(y_test, pred_lstm)
 
+
+###################################################################################
 # We've seen how to build LSTM Model. 
 # We just predicted one day. But can we predict five days, not just one?
 # Not only that, can we predict not just 'Close Price' but every column (Open, High, ... etc)
 # Yes, through Seq2Seq
-
+# So, the third model is Seq2Seq
 # Set the past and future period. But, this time, n_future is 5
 n_features = train.shape[1]
 n_past= 22
@@ -244,7 +291,8 @@ for index,i in enumerate(goog.columns):
     print()
     print()
     
-# The third model we are going to see is 'attention technique'
+###################################################################################    
+# The last model we are going to see is 'attention technique'
 # Same as Seq2Seq, I'd like to predict the future 5 days
 # And I will borrow the best parameter of LSTM and Seq2Seq (the number of neurons and activation function)
 # Below are the defined parameters
