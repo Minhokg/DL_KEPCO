@@ -66,7 +66,7 @@ for i in train_stock.columns:
     
     
 # Next, the below function is for making time series data. 
-def split_series(series, n_past,n_future,target_col=list(range(len(Kepco.columns)))):
+def split_series(series, n_past,n_future,target_col=list(range(len(goog.columns)))):
     X, y = list(), list()
     for window_start in range(len(series)):
         past_end = window_start + n_past
@@ -236,7 +236,7 @@ for index,i in enumerate(goog.columns):
     print()
 
 # Likewise, the MAPEs of 5 days are below.
-for index,i in enumerate(Kepco.columns):
+for index,i in enumerate(goog.columns):
     print(i)
     for j in range(0,5):
         print('Day',test.index[j],':')
@@ -247,5 +247,84 @@ for index,i in enumerate(Kepco.columns):
 # The third model we are going to see is 'attention technique'
 # Same as Seq2Seq, I'd like to predict the future 5 days
 # And I will borrow the best parameter of LSTM and Seq2Seq (the number of neurons and activation function)
+# Below are the defined parameters
+
+n_past = 22
+n_features = train.shape[1]
+n_future = 5
+n_hidden = grid_lstm.best_params_['n_neurons']
+activation = grid_seq2.best_params_['relu']
+# And like what we have done so far, make input and target data of train and test
+# I just used data used in seq2seq 
+X_train, y_train = split_series(series=train.values,n_past=n_past, n_future=n_future, target_col=list(range(len(goog.columns))))
+test_seq2 = pd.concat([train[-n_past:],test])
+X_test, y_test = split_series(series=test_seq2.values,n_past=n_past, n_future=n_future, target_col=list(range(len(goog.columns))))
+
+# This part is not different from seq2seq
+input_train = Input(shape=(n_past,n_features))
+output_train = Input(shape=(n_future, n_features))
+encoder_stack_h, encoder_last_h, encoder_last_c = LSTM(n_hidden, activation=activation,
+                                                      return_state=True, return_sequences=True)(input_train)
+decoder_input = RepeatVector(n_future)(encoder_last_h)
+decoder_stack_h = LSTM(n_hidden, activation=activation,return_state=False, return_sequences=True)(
+decoder_input, initial_state=[encoder_last_h, encoder_last_c])
+
+# Make Attention Layer. I set dot product attention.
+attention_score = dot([decoder_stack_h, encoder_stack_h], axes=[2,2])
+attention = Activation('softmax')(attention_score)
+context = dot([attention, encoder_stack_h], axes=[2,1])
+context = BatchNormalization(momentum=0.6)(context)
+
+# Anc combine context vector and decoder hidden value 
+decoder_combined_context = concatenate([context, decoder_stack_h])
+
+# I used TimeDistributed layer to apply each time step of sequence data, not the entire data once.
+# And the building mechanism is almost same with the models we have seen so far. 
+out = TimeDistributed(Dense(n_features))(decoder_combined_context)
+model_att = Model(inputs=input_train, outputs=out)
+opt= Adam(learning_rate=0.01)
+es =EarlyStopping(monitor='val_loss', mode='min', patience=5)
+model_att.compile(loss='mse', optimizer=opt, metrics=['mse'])
+history_att = model_att.fit(X_train, y_train, epochs=50, validation_split=0.2, callbacks=[es],
+                            verbose=0)
+
+# Compare train and test data 
+train_mse = history_att.history['mse']
+valid_mse = history_att.history['val_mse']
+plt.plot(train_mse, label='train mse')
+plt.plot(valid_mse, label='validation mse')
+plt.ylabel('mse')
+plt.xlabel('epoch')
+plt.legend(loc='upper center', bbox_to_anchor=(0.5,-0.15), fancybox=True, shadow=False, ncol=2)
+
+# Evaluate Attention Model.
+# This is almost same with seq2seq. 
+pred_att = model_att.predict(X_test)
+
+# Inverse every column scaled before
+for index, i in enumerate(goog.columns):
+    scaler = scalers['scaler_'+i]
+    pred_att[:,:,index]=scaler.inverse_transform(pred_att[:,:,index])
+    y_test[:,:,index] = scaler.inverse_transform(y_test[:,:,index])
+
+# MSE and MAPE 
+for index,i in enumerate(goog.columns):
+    print(i)
+    for j in range(0,5):
+        print('Day',test.index[j],':')
+        print('MSE:', mean_squared_error(y_test[:,j,index], pred_att[:,j,index]))
+    print()
+    print()
 
 
+for index,i in enumerate(goog.columns):
+    print(i)
+    for j in range(0,5):
+        print('Day',test.index[j],':')
+        print('MAPE:', mean_absolute_percentage_error(y_test[:,j,index], pred_att[:,j,index]))
+    print()
+    print()
+
+
+# Thank you for appreciating my project 
+# I hope this project will help you to predict any stock data.
