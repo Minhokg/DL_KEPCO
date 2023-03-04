@@ -226,7 +226,7 @@ for index, i in enumerate(goog.columns):
     pred_e1d1[:,:,index]=scaler.inverse_transform(pred_e1d1[:,:,index])
     y_test[:,:,index] = scaler.inverse_transform(y_test[:,:,index])
     
-# We have predicted 5 days. So 
+# We have predicted 5 days. So we need to evaluate each mse of 5 days
 for index,i in enumerate(goog.columns):
     print(i)
     for j in range(0,5):
@@ -235,5 +235,17 @@ for index,i in enumerate(goog.columns):
     print()
     print()
 
+# Likewise, the MAPEs of 5 days are below.
+for index,i in enumerate(Kepco.columns):
+    print(i)
+    for j in range(0,5):
+        print('Day',test.index[j],':')
+        print('MAPE:', mean_absolute_percentage_error(y_test[:,j-1,index], pred_e1d1[:,j-1,index]))
+    print()
+    print()
+    
+# The third model we are going to see is 'attention technique'
+# Same as Seq2Seq, I'd like to predict the future 5 days
+# And I will borrow the best parameter of LSTM and Seq2Seq (the number of neurons and activation function)
 
 
