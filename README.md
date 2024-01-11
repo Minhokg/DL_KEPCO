@@ -6,3 +6,4 @@
  
 ## What is RNN 
 
+* Recurrent neural network is a type of deep-learning model 
