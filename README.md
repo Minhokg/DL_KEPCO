@@ -4,9 +4,9 @@
  Before diving into the advanced RNN model, I'm going to say what RNN is 
 
  
-## What is RNN 
+## Definition of RNN 
 
-* Recurrent neural network is one of the deep learning models, which is specialized in time series data
+* Recurrent neural network is one of the deep learning models, which is specialized in time series data. 
 * Mostly, the model is used for language-relevant tasks like speech recognition. But it also shows its strength when it comes to analyzing stock data.
 
 
