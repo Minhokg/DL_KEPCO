@@ -10,4 +10,4 @@
 * Mostly, the model is used for language-relevant tasks like speech recognition. But it also shows its strength when it comes to analyzing stock data.
 
 
-<div class="background: white;"> ![Recurrent_neural_network_unfold](https://github.com/minhokg/RNN_Google_Stock/assets/90128043/12a3b83b-3332-4a67-9f55-116cd887419f) </div>
+![The-standard-RNN-and-unfolded-RNN](https://github.com/minhokg/RNN_Google_Stock/assets/90128043/5909b552-b0e0-4212-b2c1-885b63b26b46)
