@@ -9,4 +9,4 @@
 * Recurrent neural network is one of the deep learning models, which is specialized in time series data
 * Mostly, the model is used for language-relevant tasks like speech recognition. But it also shows its strength when it comes to analyzing stock data.
 
-  ![alt text](https://www.google.com/url?sa=i&url=https%3A%2F%2Fen.m.wikipedia.org%2Fwiki%2FFile%3ARecurrent_neural_network_unfold.svg&psig=AOvVaw2acnnuf8GrkIIbO-Ym13vT&ust=1705109288994000&source=images&cd=vfe&opi=89978449&ved=0CBIQjRxqFwoTCJjhm5_Z1oMDFQAAAAAdAAAAABAD)
+![Recurrent_neural_network_unfold](https://github.com/minhokg/RNN_Google_Stock/assets/90128043/ef5f0577-d5f1-470f-b988-d9679af27edc)
